@@ -1,14 +1,15 @@
-#lang typed/racket/base
+#lang typed/racket/base/no-check
 
-(require require-typed-check)
+;(require require-typed-check)
 
-(require/typed/check "streams.rkt"
-  [#:struct stream ([first : Natural]
-                    [rest : (-> stream)])]
-  [make-stream (-> Natural (-> stream) stream)]
-  [stream-unfold (-> stream (values Natural stream))]
-  [stream-get (-> stream Natural Natural)]
-  [stream-take (-> stream Natural (Listof Natural))])
+(require "streams.rkt")
+
+  ;; [#:struct stream ([first : Natural]
+  ;;                   [rest : (-> stream)])]
+  ;; [make-stream (-> Natural (-> stream) stream)]
+  ;; [stream-unfold (-> stream (values Natural stream))]
+  ;; [stream-get (-> stream Natural Natural)]
+  ;; [stream-take (-> stream Natural (Listof Natural))])
 
 ;;--------------------------------------------------------------------------------------------------
 
@@ -36,10 +37,10 @@
 (define primes (sieve (count-from 2)))
 
 (: N-1 Natural)
-(define N-1 6666)
+(define N-1 666)
 
 (: main (-> Void))
 (define (main)
-  (void (stream-get primes N-1)))
-
+  (printf "the ~s prime is ~s\n" N-1 (stream-get primes N-1)))
+'typed
 (time (main))
