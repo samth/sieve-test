@@ -20,6 +20,8 @@
 (module* plain #f
   (provide stream-take stream-get stream-unfold make-stream))
 
+(define-syntax-rule (unless . e) (void))
+
 (define-inline (wrap-pair p who)
   (unless (and (pair? p)
                (exact-nonnegative-integer? (car p)))
