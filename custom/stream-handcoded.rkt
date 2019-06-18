@@ -1,20 +1,24 @@
 #lang racket/base
-(require racket/performance-hint racket/contract/base)
+(require racket/performance-hint racket/contract/base racket/unsafe/ops)
 ;; Simple streams library.
 ;; For building and using infinite lists.
 
 (define stream/c/rec (recursive-contract stream/c #:chaperone))
 (define stream/c (cons/c exact-nonnegative-integer? (-> stream/c/rec)))
 
-#;(provide (contract-out [make-stream (->* (exact-nonnegative-integer? (-> stream/c/rec)) () any)]
-                       [stream-unfold (->* (stream/c/rec) () any)]
-                       [stream-get (->* (stream/c/rec exact-nonnegative-integer?) () any)]
-                       [stream-take (->* (stream/c/rec exact-nonnegative-integer?) () any)]))
+(module* contracted #f
+  (provide (contract-out [make-stream (->* (exact-nonnegative-integer? (-> stream/c/rec)) () any)]
+                         [stream-unfold (->* (stream/c/rec) () any)]
+                         [stream-get (->* (stream/c/rec exact-nonnegative-integer?) () any)]
+                         [stream-take (->* (stream/c/rec exact-nonnegative-integer?) () any)])))
 
-(provide (rename-out [stream-take* stream-take]
-                     [make-stream* make-stream]
-                     [stream-get* stream-get]
-                     [stream-unfold* stream-unfold]))
+(module* wrapped #f
+  (provide (rename-out [stream-take* stream-take]
+                       [make-stream* make-stream]
+                       [stream-get* stream-get]
+                       [stream-unfold* stream-unfold])))
+(module* plain #f
+  (provide stream-take stream-get stream-unfold make-stream))
 
 (define-inline (wrap-pair p who)
   (unless (and (pair? p)
@@ -26,15 +30,25 @@
   (unless (and (procedure? thunk) (procedure-arity-includes? thunk 0))
     (error who))
   (lambda ()
-    (define s (thunk))
-    (wrap-pair s 'who)))
+    (call-with-immediate-continuation-mark
+     'contract-cont-mark
+     (lambda (m)
+       (if (and m (eq? (car m) 'stream) (eq? (cdr m) who))
+           (thunk)
+           (wrap-pair (with-continuation-mark 'contract-cont-mark (cons 'stream who) (thunk)) who))))))
 
 (define (wrap-thunk/chap thunk who)
   (unless (and (procedure? thunk) (procedure-arity-includes? thunk 0))
     (error who))
+  ;(eprintf "chaperoning!\n")
   (chaperone-procedure thunk (lambda () (lambda (s) (wrap-pair s 'xxx)))))
 
-(define wrap-thunk wrap-thunk/proc)
+(define (wrap-thunk/unsafe-chap thunk who)
+  (unless (and (procedure? thunk) (procedure-arity-includes? thunk 0))
+    (error who))
+  (unsafe-chaperone-procedure thunk (wrap-thunk/proc thunk who)))
+
+(define-syntax-rule (wrap-thunk . args) (wrap-thunk/proc . args))
 
 (define-inline (make-stream* hd thunk)
   (unless (exact-nonnegative-integer? hd)
@@ -51,7 +65,7 @@
 ;(: stream-unfold (-> stream (values Natural stream)))
 (define-inline (stream-unfold* st)
   (stream-unfold (wrap-pair st 'stream-unfold-client)))
-(define-inline (stream-unfold st)
+(define (stream-unfold st)
   (values (car st) ((cdr st))))
 
 ;; [stream-get st i] Get the [i]-th element from the stream [st]

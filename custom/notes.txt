@@ -3,3 +3,12 @@ Time for Stream-contract/666: 3592
 Time for Stream-opt-contract/666: 1724
 
 Time for Both-typed/6666: 1940
+
+For 66, handcoded:
+   1175160 out
+
+With contract lib mods:
+   1175301 out
+
+For 66, contracts
+   5997 out
